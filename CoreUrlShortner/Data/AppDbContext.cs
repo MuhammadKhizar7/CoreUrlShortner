@@ -9,5 +9,5 @@ public class AppDbContext :DbContext
     {
 
     }
-    public DbSet<Url> Urls { get; set; }
+    public DbSet<Link> Links { get; set; }
 }

@@ -1,7 +1,8 @@
 using CoreUrlShortner.Data;
 using CoreUrlShortner.Extentions;
+using CoreUrlShortner.Models;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -23,14 +24,47 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.MapGet("/", () => "Hello World!");
-
-app.MapPost("/", (string url) =>
-{
-    if (url.CheckURLValid())
+app.MapGet("/{code}", async (string code, AppDbContext ctx, HttpContext httpContext, IConfiguration config) => {
+    if (!string.IsNullOrWhiteSpace(code))
     {
-        
-        return Results.Ok(true);
+        var link = await ctx.Links.FirstOrDefaultAsync(x => x.code == code);
+        if (link != null)
+        {
+            var baseUrl = config["appUrl"];
+            return Results.Ok(new { shortLink=baseUrl+link.code, longUrl=link.LongUrl});
+        }
+    }
+    return Results.BadRequest("URL is not valid");
+
+});
+
+app.MapPost("/", async (string url, AppDbContext ctx, IConfiguration config) =>
+{
+    if (url.CheckURLValid() && await url.CheckUrlExitAsync())
+    {
+        var baseUrl = config["appUrl"];
+        var code  = "8peap7r";//Nanoid.Nanoid.Generate(size: 7);
+       var shortUrl = baseUrl + code;
+
+        var link = new Link { code = code, LongUrl = url };
+
+        try
+        {
+            ctx.Links.Add(link);
+            ctx.SaveChanges();
+            return Results.Ok(shortUrl);
+        } // incase of Nanoid generate same Id (it has low chance bit there is chance)
+        catch (Exception ex) when (ex.InnerException is SqlException sqlException && (sqlException.Number == 2627 || sqlException.Number == 2601))
+        {
+            code = Nanoid.Nanoid.Generate(size: 7);
+            link.code = code;
+            shortUrl = baseUrl + code;
+            ctx.Links.Add(link);
+            ctx.SaveChanges();
+            return Results.Ok(shortUrl);
+
+        }
+
     }
     return Results.BadRequest("URL is not valid");
 
