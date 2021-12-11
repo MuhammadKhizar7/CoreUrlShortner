@@ -1,6 +1,7 @@
 using CoreUrlShortner.Data;
 using CoreUrlShortner.Extentions;
 using CoreUrlShortner.Models;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
@@ -23,6 +24,15 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// basic error handling meddleware
+app.UseExceptionHandler(a => a.Run(async context =>
+{
+    var exceptionHandlerPathFeature = context.Features.Get<IExceptionHandlerPathFeature>();
+    var exception = exceptionHandlerPathFeature?.Error;
+
+    await context.Response.WriteAsJsonAsync(new { error = exception?.Message });
+}));
 
 app.MapGet("/{code}", async (string code, AppDbContext ctx, HttpContext httpContext, IConfiguration config) => {
     if (!string.IsNullOrWhiteSpace(code))
