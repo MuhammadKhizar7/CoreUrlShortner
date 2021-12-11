@@ -43,7 +43,7 @@ app.MapPost("/", async (string url, AppDbContext ctx, IConfiguration config) =>
     if (url.CheckURLValid() && await url.CheckUrlExitAsync())
     {
         var baseUrl = config["appUrl"];
-        var code  = "8peap7r";//Nanoid.Nanoid.Generate(size: 7);
+        var code  = Nanoid.Nanoid.Generate(size: 7);
        var shortUrl = baseUrl + code;
 
         var link = new Link { code = code, LongUrl = url };
