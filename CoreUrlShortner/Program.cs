@@ -4,6 +4,8 @@ using CoreUrlShortner.Models;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using static System.Net.Mime.MediaTypeNames;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -25,14 +27,38 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// basic error handling meddleware
-app.UseExceptionHandler(a => a.Run(async context =>
-{
-    var exceptionHandlerPathFeature = context.Features.Get<IExceptionHandlerPathFeature>();
-    var exception = exceptionHandlerPathFeature?.Error;
+app.UseDeveloperExceptionPage();
 
-    await context.Response.WriteAsJsonAsync(new { error = exception?.Message });
-}));
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler(exceptionHandlerApp =>
+    {
+        exceptionHandlerApp.Run(async context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+
+            // using static System.Net.Mime.MediaTypeNames;
+            context.Response.ContentType = Text.Plain;
+
+            await context.Response.WriteAsync("An exception was thrown.");
+
+            var exceptionHandlerPathFeature =
+                context.Features.Get<IExceptionHandlerPathFeature>();
+
+            if (exceptionHandlerPathFeature?.Error is FileNotFoundException)
+            {
+                await context.Response.WriteAsync(" The file was not found.");
+            }
+
+            if (exceptionHandlerPathFeature?.Path == "/")
+            {
+                await context.Response.WriteAsync(" Page: Home.");
+            }
+        });
+    });
+
+    app.UseHsts();
+}
 
 app.MapGet("/{code}", async (string code, AppDbContext ctx, HttpContext httpContext, IConfiguration config) => {
     if (!string.IsNullOrWhiteSpace(code))
